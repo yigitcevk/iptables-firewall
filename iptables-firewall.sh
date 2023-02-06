@@ -12,6 +12,7 @@ S1M="veth-firewall1"
 S2M="veth-firewall2"
 M2R1="veth-firewall3"
 H2F="veth-firewall0"
+F="veth0"
 R1="veth-server"
 
 NS_SND1="client1"
@@ -42,7 +43,7 @@ sudo ip link set dev $R1 up
 sudo ip link set dev $S2 up
 sudo ip link set dev $S2M up
 
-sudo ip link set dev veth0 up
+sudo ip link set dev $F up
 sudo ip link set dev $H2F up
 
 
@@ -84,9 +85,9 @@ sudo ip netns exec $NS_MID ip addr add 192.0.2.202/26 dev $M2R1
 sudo ip netns exec $NS_MID ip link set dev $H2F up
 sudo ip netns exec $NS_MID ip addr add 192.0.2.203/26 dev $H2F
 
+sudo ip link set dev $F up
+sudo ip addr add 192.0.2.204/26 dev $F
 
-#sudo ip netns exec $ ip link set dev $H2F up
-#sudo ip netns exec $ ip address add 192.0.2.0/26 dev $H2F
 
 
 #Add ip routes
@@ -101,6 +102,7 @@ sudo ip netns exec $NS_SND2 ip route add 192.0.2.128/26 via 192.0.2.201 dev $S2
 sudo ip netns exec $NS_RCV ip route add 192.0.2.202 dev $R1
 sudo ip netns exec $NS_RCV ip route add 192.0.2.192/26 via 192.0.2.202 dev $R1
 sudo ip netns exec $NS_RCV ip route add 192.0.2.0/26 via 192.0.2.202 dev $R1
+sudo ip netns exec $NS_RCV ip route add 192.0.2.64/26 via 192.0.2.202 dev $R1
 
 sudo ip netns exec $NS_MID ip route add 192.0.2.10 dev $S1M
 sudo ip netns exec $NS_MID ip route add 192.0.2.0/26 via 192.0.2.10 dev $S1M
@@ -116,32 +118,32 @@ sudo ip netns exec $NS_MID ip route add 192.0.2.64/26 via 192.0.2.130 dev $M2R1
 sudo ip netns exec $NS_MID ip route add 192.0.2.0/26 via 192.0.2.130 dev $M2R1
 
 
+
+sudo ip netns exec $NS_MID ip route add 192.0.2.204 dev $H2F
+
+sudo ip route add 192.0.2.203 dev $F
+sudo ip route add 192.0.2.0/26 via 192.0.2.203 dev $F
+sudo ip route add 192.0.2.64/26 via 192.0.2.203 dev $F
+sudo ip route add 192.0.2.128/26 via 192.0.2.203 dev $F
+
+
 sudo ip netns exec $NS_MID sysctl -w net.ipv4.ip_forward=1
 sudo ip netns exec $NS_SND1 sysctl -w net.ipv4.ip_forward=1
 sudo ip netns exec $NS_SND2 sysctl -w net.ipv4.ip_forward=1
 sudo ip netns exec $NS_RCV sysctl -w net.ipv4.ip_forward=1
-
-sudo ip netns exec $NS_SND2 iptables -A INPUT -s 192.0.2.70 -j REJECT
-sudo ip netns exec $NS_SND2 iptables -A FORWARD -s 192.0.2.70 -p tcp -j REJECT
-
-sudo ip link set dev veth0 up
-sudo ip addr add 192.168.0.200/24 dev veth0
-
-sudo ip netns exec client1 ip route add 192.168.0.0/24 via 192.0.2.200
+sudo sysctl -w net.ipv4.ip_forward=1
 
 
-sudo ip netns exec firewall ip route add 192.168.0.200 dev veth-firewall0
-sudo ip netns exec firewall ip route add 192.168.0.0/24 via 192.168.0.200 dev veth-firewall0
-sudo ip netns exec firewall ip route add 192.0.2.0/26 via 192.168.0.200 dev veth-firewall0
-sudo ip netns exec firewall ip route add 192.0.2.64/26 via 192.168.0.200 dev veth-firewall0
-sudo ip netns exec firewall ip route add 192.0.2.128/26 via 192.168.0.200 dev veth-firewall0
+sudo ip netns exec $NS_MID iptables -A INPUT -i veth-firewall1 -s 192.0.2.10 -p icmp -j REJECT
+sudo ip netns exec $NS_MID iptables -A OUTPUT -o veth-firewall1 -s 192.0.2.10 -p icmp -j REJECT
+sudo ip netns exec $NS_MID iptables -A FORWARD -s 192.0.2.10 -p tcp -j REJECT
 
-sudo ip route add 192.0.2.203 dev veth0
-sudo ip route add 192.0.2.0/26 via 192.0.2.203 dev veth0
-sudo ip route add 192.0.2.64/26 via 192.0.2.203 dev veth0
-sudo ip route add 192.0.2.128/26 via 192.0.2.203 dev veth0
+sudo ip netns exec $NS_SND1 ip route add default via 192.0.2.200 dev $S1M
+sudo ip netns exec $NS_RCV ip route add default via 192.0.2.202 dev $R1
+sudo ip netns exec $NS_SND2 ip route add default via 192.0.2.201 dev $S2M
+sudo ip netns exec $NS_MID ip route add default via 192.0.2.204 dev $H2F
 
-sudo  iptables -A FORWARD -o eno1 -i veth0 -j ACCEPT
+sudo iptables -A FORWARD -o eno1 -i veth0 -j ACCEPT
 sudo iptables -A FORWARD -i eno1 -o veth0 -j ACCEPT
 
 sudo iptables -t nat -A POSTROUTING -s 192.0.2.0/26 -o eno1 -j MASQUERADE
@@ -149,8 +151,6 @@ sudo iptables -t nat -A POSTROUTING -s 192.0.2.64/26 -o eno1 -j MASQUERADE
 sudo iptables -t nat -A POSTROUTING -s 192.0.2.128/26 -o eno1 -j MASQUERADE
 sudo iptables -t nat -A POSTROUTING -s 192.0.2.192/26 -o eno1 -j MASQUERADE
 
-sudo ip netns exec firewall ip route add default via 192.168.0.200
-sudo ip netns exec client1 ip route add default via 192.168.0.200
 
 
 
