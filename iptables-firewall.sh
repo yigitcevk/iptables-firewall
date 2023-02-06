@@ -19,6 +19,7 @@ NS_SND1="client1"
 NS_SND2="client2"
 NS_RCV="server"
 NS_MID="firewall"
+NS_H="$NS_H"
 
 
 #Create network namespaces
@@ -143,13 +144,13 @@ sudo ip netns exec $NS_RCV ip route add default via 192.0.2.202 dev $R1
 sudo ip netns exec $NS_SND2 ip route add default via 192.0.2.201 dev $S2M
 sudo ip netns exec $NS_MID ip route add default via 192.0.2.204 dev $H2F
 
-sudo iptables -A FORWARD -o eno1 -i veth0 -j ACCEPT
-sudo iptables -A FORWARD -i eno1 -o veth0 -j ACCEPT
+sudo iptables -A FORWARD -o $NS_H -i veth0 -j ACCEPT
+sudo iptables -A FORWARD -i $NS_H -o veth0 -j ACCEPT
 
-sudo iptables -t nat -A POSTROUTING -s 192.0.2.0/26 -o eno1 -j MASQUERADE
-sudo iptables -t nat -A POSTROUTING -s 192.0.2.64/26 -o eno1 -j MASQUERADE
-sudo iptables -t nat -A POSTROUTING -s 192.0.2.128/26 -o eno1 -j MASQUERADE
-sudo iptables -t nat -A POSTROUTING -s 192.0.2.192/26 -o eno1 -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 192.0.2.0/26 -o $NS_H -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 192.0.2.64/26 -o $NS_H -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 192.0.2.128/26 -o $NS_H -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 192.0.2.192/26 -o $NS_H -j MASQUERADE
 
 
 
